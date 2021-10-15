@@ -80,12 +80,15 @@ app.post('/signup',
   (req, res, next) => {
     models.Users.create(req.body)
       .then(() => {
-        res.render('index');
+        // res.render('index');
+        res.redirect('/');
         res.sendStatus(201);
       })
       .catch(() => {
-        res.render('signup');
-        res.statusCode(404);
+        console.log('Error Username already Exists');
+        // res.render('/signup');
+        res.redirect('/signup');
+        res.sendStatus(404);
       });
   });
 
@@ -96,8 +99,24 @@ app.post('/login',
     //ask database for salt and hashed password of specified username
     //use compare function that will translate hashed password and compare it with input password
     //if compare returned true then send main page to user
-    models.Users.compare(attempted, password, salt);
-    res.sendStatus(201);
+
+    models.Users.get({ 'username': req.body.username })
+      .then((result) => {
+        if (result !== undefined) {
+          if (models.Users.compare(req.body.password, result.password, result.salt)) {
+            res.redirect('/');
+            res.sendStatus(201);
+          } else {
+            console.log('Incorrect password');
+            res.redirect('/login');
+            res.sendStatus(404);
+          }
+        } else {
+          console.log('Username not found');
+          res.redirect('/login');
+          res.sendStatus(404);
+        }
+      });
   });
 
 
