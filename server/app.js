@@ -77,16 +77,14 @@ app.post('/links',
 // Write your authentication routes here
 /************************************************************/
 app.post('/signup',
-  (req, res, next) => {
+  (req, res) => {
     models.Users.create(req.body)
       .then(() => {
-        // res.render('index');
         res.redirect('/');
         res.sendStatus(201);
       })
       .catch(() => {
-        console.log('Error Username already Exists');
-        // res.render('/signup');
+        // console.log('Error Username already Exists');
         res.redirect('/signup');
         res.sendStatus(404);
       });
@@ -94,7 +92,7 @@ app.post('/signup',
 
 
 app.post('/login',
-  (req, res, next) => {
+  (req, res) => {
     //get login details from user
     //ask database for salt and hashed password of specified username
     //use compare function that will translate hashed password and compare it with input password
@@ -107,12 +105,12 @@ app.post('/login',
             res.redirect('/');
             res.sendStatus(201);
           } else {
-            console.log('Incorrect password');
+            // console.log('Incorrect password');
             res.redirect('/login');
             res.sendStatus(404);
           }
         } else {
-          console.log('Username not found');
+          // console.log('Username not found');
           res.redirect('/login');
           res.sendStatus(404);
         }
@@ -126,7 +124,7 @@ app.post('/login',
 // If the short-code doesn't exist, send the user to '/'
 /************************************************************/
 
-app.get('/:code', (req, res, next) => {
+app.get('/:code', (req, res) => {
 
   return models.Links.get({ code: req.params.code })
     .tap(link => {
