@@ -3,6 +3,7 @@ const path = require('path');
 const utils = require('./lib/hashUtils');
 const partials = require('express-partials');
 const Auth = require('./middleware/auth');
+const cookie = require('./middleware/cookieParser');
 const models = require('./models');
 
 const app = express();
@@ -13,6 +14,8 @@ app.use(partials());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
+app.use(cookie);
+app.use(Auth.createSession);
 
 
 
@@ -73,17 +76,18 @@ app.post('/links',
       });
   });
 
-/************************************************************/
-// Write your authentication routes here
-/************************************************************/
 app.post('/signup',
   (req, res) => {
+    console.log('DOING SIGNUP');
     models.Users.create(req.body)
-      .then(() => {
+      .then((result) => {
+        console.log('CREATED SUCCESS');
+        console.log(result);
         res.redirect('/');
         res.sendStatus(201);
       })
       .catch(() => {
+        console.log('CREATE FAILURE');
         // console.log('Error Username already Exists');
         res.redirect('/signup');
         res.sendStatus(404);
@@ -102,6 +106,11 @@ app.post('/login',
       .then((result) => {
         if (result !== undefined) {
           if (models.Users.compare(req.body.password, result.password, result.salt)) {
+            console.log('DK REQ', req);
+            //req.session.userId currently NULL
+            //make req.session.user the userId inside user DB
+            //req.session.userId =
+            //req.session.user =
             res.redirect('/');
             res.sendStatus(201);
           } else {
@@ -116,6 +125,16 @@ app.post('/login',
         }
       });
   });
+
+/************************************************************/
+// Write your authentication routes here
+/************************************************************/
+module.exports.verifySession = function(req, res, cb) {
+  console.log('hiiiiii');
+  console.log(req);
+};
+
+
 
 
 /************************************************************/
