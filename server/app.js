@@ -19,123 +19,113 @@ app.use(Auth.createSession);
 
 
 
-app.get('/',
-  (req, res) => {
-    res.render('index');
-  });
+app.get('/', Auth.verifySession, (req, res) => {
+  res.render('index');
+});
 
-app.get('/create',
-  (req, res) => {
-    res.render('index');
-  });
+app.get('/create', Auth.verifySession, (req, res) => {
+  res.render('index');
+});
 
-app.get('/links',
-  (req, res, next) => {
-    models.Links.getAll()
-      .then(links => {
-        res.status(200).send(links);
-      })
-      .error(error => {
-        res.status(500).send(error);
-      });
-  });
+app.get('/links', Auth.verifySession, (req, res, next) => {
+  models.Links.getAll()
+    .then(links => {
+      res.status(200).send(links);
+    })
+    .error(error => {
+      res.status(500).send(error);
+    });
+});
 
-app.post('/links',
-  (req, res, next) => {
-    var url = req.body.url;
-    if (!models.Links.isValidUrl(url)) {
-      // send back a 404 if link is not valid
-      return res.sendStatus(404);
-    }
+app.post('/links', Auth.verifySession, (req, res, next) => {
+  var url = req.body.url;
+  if (!models.Links.isValidUrl(url)) {
+    // send back a 404 if link is not valid
+    return res.sendStatus(404);
+  }
 
-    return models.Links.get({ url })
-      .then(link => {
-        if (link) {
-          throw link;
-        }
-        return models.Links.getUrlTitle(url);
-      })
-      .then(title => {
-        return models.Links.create({
-          url: url,
-          title: title,
-          baseUrl: req.headers.origin
-        });
-      })
-      .then(results => {
-        return models.Links.get({ id: results.insertId });
-      })
-      .then(link => {
+  return models.Links.get({ url })
+    .then(link => {
+      if (link) {
         throw link;
-      })
-      .error(error => {
-        res.status(500).send(error);
-      })
-      .catch(link => {
-        res.status(200).send(link);
+      }
+      return models.Links.getUrlTitle(url);
+    })
+    .then(title => {
+      return models.Links.create({
+        url: url,
+        title: title,
+        baseUrl: req.headers.origin
       });
-  });
+    })
+    .then(results => {
+      return models.Links.get({ id: results.insertId });
+    })
+    .then(link => {
+      throw link;
+    })
+    .error(error => {
+      res.status(500).send(error);
+    })
+    .catch(link => {
+      res.status(200).send(link);
+    });
+});
 
-app.post('/signup',
-  (req, res) => {
-    console.log('DOING SIGNUP');
-    models.Users.create(req.body)
-      .then((result) => {
-        console.log('CREATED SUCCESS');
-        console.log(result);
-        res.redirect('/');
-        res.sendStatus(201);
-      })
-      .catch(() => {
-        console.log('CREATE FAILURE');
-        // console.log('Error Username already Exists');
-        res.redirect('/signup');
-        res.sendStatus(404);
-      });
-  });
-
-
-app.post('/login',
-  (req, res) => {
-    //get login details from user
-    //ask database for salt and hashed password of specified username
-    //use compare function that will translate hashed password and compare it with input password
-    //if compare returned true then send main page to user
-
-    models.Users.get({ 'username': req.body.username })
-      .then((result) => {
-        if (result !== undefined) {
-          if (models.Users.compare(req.body.password, result.password, result.salt)) {
-            console.log('DK REQ', req);
-            //req.session.userId currently NULL
-            //make req.session.user the userId inside user DB
-            //req.session.userId =
-            //req.session.user =
-            res.redirect('/');
-            res.sendStatus(201);
-          } else {
-            // console.log('Incorrect password');
-            res.redirect('/login');
-            res.sendStatus(404);
-          }
-        } else {
-          // console.log('Username not found');
-          res.redirect('/login');
-          res.sendStatus(404);
-        }
-      });
-  });
 
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
-module.exports.verifySession = function(req, res, cb) {
-  console.log('hiiiiii');
-  console.log(req);
-};
 
+app.get('/signup', (req, res) => {
+  res.render('signup');
+});
 
+app.post('/signup', (req, res) => {
+  const { username, password } = req.body;
+  return models.Users.get({ username })
+    .then(user => {
+      if (user) throw Error('Username taken');
+      else return models.Users.create({ username, password });
+    })
+    .then(results => {
+      return models.Sessions.update(
+        { hash: req.session.hash },
+        { userId: result.insertId }
+      );
+    })
+    .then(() => res.redirect('/'))
+    .error(err => res.status(500).send())
+    .catch(err => {
+      res.redirect('/signup');
+    });
+});
 
+app.get('/logout', (req, res) => {
+  return models.Sessions.delete({ hash: req.cookies.shortlyid })
+    .then(() => {
+      res.clearCookie('shortlyid');
+      res.redirect('/login');
+    })
+    .catch(error => res.status(500).send());
+});
+
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+  return models.Users.get({ username })
+    .then((user) => {
+      if (!user || !models.Users.compare(password, user.password, user.salt)) {
+        throw Error('Username and password don\'t match');
+      } else {
+        return models.Sessions.update(
+          { hash: req.session.hash }, { userId: user.id }
+        );
+      }
+    })
+    .then(() => res.redirect('/'))
+    .error(err => res.status(500).send())
+    .catch(err => res.redirect('/login'));
+});
 
 /************************************************************/
 // Handle the code parameter route last - if all other routes fail
