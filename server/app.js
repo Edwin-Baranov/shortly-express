@@ -85,20 +85,19 @@ app.post('/signup', (req, res) => {
   const { username, password } = req.body;
   return models.Users.get({ username })
     .then(user => {
-      if (user) throw Error('Username taken');
-      else return models.Users.create({ username, password });
+      if (user) {
+        throw user;
+      } else { return models.Users.create({ username, password }); }
     })
     .then(results => {
       return models.Sessions.update(
         { hash: req.session.hash },
-        { userId: result.insertId }
+        { userId: results.insertId }
       );
     })
-    .then(() => res.redirect('/'))
-    .error(err => res.status(500).send())
-    .catch(err => {
-      res.redirect('/signup');
-    });
+    .then(() => { res.redirect('/'); })
+    .error(err => { res.status(500).send(); })
+    .catch(user => { res.redirect('/signup'); });
 });
 
 app.get('/logout', (req, res) => {
